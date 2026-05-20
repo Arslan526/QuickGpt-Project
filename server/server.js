@@ -32,6 +32,7 @@ app.get('/', (req, res) => {
     
 });
 console.log("KEY =>", process.env.GROQ_API_KEY)
+console.log("JWT =>", process.env.JWT_SECRET)
 
 const PORT = 5000;
 

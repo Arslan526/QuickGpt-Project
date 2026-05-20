@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import Chat from "../models/Chat.js";
 
 
 // ✅ Generate JWT Token
@@ -18,6 +19,8 @@ export const registerUser = async (req, res) => {
 
         const { name, email, password } = req.body;
 
+        console.log(req.body);
+
         // Check user exists
         const userExists = await User.findOne({ email });
 
@@ -28,11 +31,17 @@ export const registerUser = async (req, res) => {
             });
         }
 
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        console.log(hashedPassword);
+
         // Create user
         const user = await User.create({
             name,
             email,
-            password
+            password: hashedPassword
         });
 
         // Generate token
@@ -49,6 +58,8 @@ export const registerUser = async (req, res) => {
         });
 
     } catch (error) {
+
+        console.log(error);
 
         res.json({
             success: false,
@@ -59,36 +70,91 @@ export const registerUser = async (req, res) => {
 
 
 // ✅ Login User
+// export const loginUser = async (req, res) => {
+
+//     try {
+
+//         const { email, password } = req.body;
+
+//         // Find User
+//         const user = await User.findOne({ email });
+
+//         if (!user) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "User not found"
+//             });
+//         }
+
+//         // ✅ Compare Password
+//         const isMatch = await bcrypt.compare(password, user.password);
+
+//         if (!isMatch) {
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "Wrong password"
+//             });
+//         }
+
+//         // Generate Token
+//         const token = generateToken(user._id);
+
+//         res.status(200).json({
+//             success: true,
+//             token,
+//             user: {
+//                 id: user._id,
+//                 name: user.name,
+//                 email: user.email
+//             }
+//         });
+
+//     } catch (error) {
+
+//         res.status(500).json({
+//             success: false,
+//             message: error.message
+//         });
+//     }
+// };
+
+
 export const loginUser = async (req, res) => {
 
     try {
 
         const { email, password } = req.body;
 
-        // Find user
+        console.log("LOGIN DATA =>", req.body);
+
+        // Find User
         const user = await User.findOne({ email });
 
+        console.log("USER =>", user);
+
         if (!user) {
-            return res.json({
+            return res.status(401).json({
                 success: false,
                 message: "User not found"
             });
         }
 
-        // Compare password
+        // Compare Password
         const isMatch = await bcrypt.compare(password, user.password);
 
+        console.log("MATCH =>", isMatch);
+
         if (!isMatch) {
-            return res.json({
+            return res.status(401).json({
                 success: false,
                 message: "Wrong password"
             });
         }
 
-        // Generate token
+        // Generate Token
         const token = generateToken(user._id);
 
-        res.json({
+        res.status(200).json({
             success: true,
             token,
             user: {
@@ -100,7 +166,28 @@ export const loginUser = async (req, res) => {
 
     } catch (error) {
 
-        res.json({
+        console.log("LOGIN ERROR =>", error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// ✅ Get User Data
+export const getUser = async (req, res) => {
+
+    try {
+
+        res.status(200).json({
+            success: true,
+            user: req.user
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
             success: false,
             message: error.message
         });
@@ -108,28 +195,21 @@ export const loginUser = async (req, res) => {
 };
 
 
-// ✅ Get User Data
-export const getUser = async (req, res) => {
-
-    res.json({
-        success: true,
-        user: req.user
-    });
-};
-
-
-
-// API to get published images
+// ✅ API to get published images
 export const getPublishedImages = async (req, res) => {
+
     try {
+
         const publishedImageMessages = await Chat.aggregate([
-            {$unwind: "$messages"},
+            { $unwind: "$messages" },
+
             {
                 $match: {
                     "messages.isImage": true,
                     "messages.isPublished": true
                 }
             },
+
             {
                 $project: {
                     _id: 0,
@@ -137,10 +217,18 @@ export const getPublishedImages = async (req, res) => {
                     userName: "$userName"
                 }
             }
-        ])
+        ]);
 
-        res.json({ success: true, images: publishedImageMessages.reverse()})
+        res.status(200).json({
+            success: true,
+            images: publishedImageMessages.reverse()
+        });
+
     } catch (error) {
-        return res.json({ success: false, message: error.message });
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-}
+};
